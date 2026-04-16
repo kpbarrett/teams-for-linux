@@ -32,6 +32,10 @@ These documents capture in-depth analysis and strategic insights that inform dev
 
 ### Awaiting User Feedback
 
+- **[Direct In-Chat Codex Mentions Spec](direct-chat-codex-spec.md)** - Mention-triggered in-chat Codex replies
+  - Proposed behavior: detect `@botName` in Teams chat, call the local Codex backend, and post a formatted reply as the signed-in user
+  - Key risks: DOM drift, reply loops, and Teams compose/send integration
+
 - **[MQTT Extended Status Investigation](mqtt-extended-status-investigation.md)** - Extended MQTT status publishing
   - **Phase 1 Shipped**: Infrastructure, LWT, call state, camera, microphone, and screen sharing topics
   - **Screen sharing null sourceId fix**: PR [#2193](https://github.com/IsmaelMartinez/teams-for-linux/pull/2193) landing in v2.7.11

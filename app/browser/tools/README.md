@@ -159,6 +159,11 @@ Provides authentication token caching and management for improved login persiste
 #### [mqttStatusMonitor.js](mqttStatusMonitor.js)
 Monitors Teams user status and sends updates to the main process via IPC for MQTT publishing to home automation systems. Uses a dual-layer detection strategy with MutationObserver for real-time DOM changes (debounced) and polling as a fallback. See the [MQTT module README](../../mqtt/README.md) for full documentation.
 
+#### [codexChatMentions.js](codexChatMentions.js)
+Detects explicit `@botName` mentions in the Teams composer, forwards the message to the local Codex endpoint, and posts the answer back into the current chat as a quoted reply.
+
+**Configuration**: `codex.enabled: true`
+
 **Configuration**: Requires `mqtt.enabled: true` in config
 **Requires**: `ipcRenderer` passed during initialization
 

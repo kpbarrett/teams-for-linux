@@ -8,6 +8,36 @@ const REPLY_SEND_TIMEOUT_MS = 5000;
 const PROGRAMMATIC_SEND_SUPPRESSION_MS = 1000;
 const DEFAULT_REPLY_PREFIX = 'says:';
 
+function emitDebugLog(level, message, data) {
+	if (globalThis.electronAPI?.send) {
+		try {
+			globalThis.electronAPI.send('codex-chat-debug-log', {
+				level,
+				message,
+				data,
+				timestamp: Date.now(),
+			});
+		} catch (error) {
+			console.debug(`${LOG_PREFIX} Failed to forward debug log: ${error.message}`);
+		}
+	}
+}
+
+function debug(message, data) {
+	console.info(`${LOG_PREFIX} ${message}`, data ?? '');
+	emitDebugLog('info', message, data);
+}
+
+function warn(message, data) {
+	console.warn(`${LOG_PREFIX} ${message}`, data ?? '');
+	emitDebugLog('warn', message, data);
+}
+
+function error(message, data) {
+	console.error(`${LOG_PREFIX} ${message}`, data ?? '');
+	emitDebugLog('error', message, data);
+}
+
 function escapeRegExp(value) {
 	return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -128,12 +158,21 @@ class CodexChatMentions {
 		this.#replyPrefix = codexConfig.chat?.replyPrefix || DEFAULT_REPLY_PREFIX;
 		this.#initialized = true;
 		this.#lastChatHref = globalThis.location?.href || '';
+		debug('Initialized config', {
+			botName: this.#client.botName,
+			aliases: Array.from(this.#client.botAliases),
+			replyPrefix: this.#replyPrefix,
+		});
 
 		const start = () => {
+			debug('Starting listeners and observers', {
+				href: globalThis.location?.href || '',
+				readyState: document.readyState,
+			});
 			this.#installListeners();
 			this.#startDomObserver();
 			this.#scheduleScan();
-			console.info(`${LOG_PREFIX} Initialized for bot "${this.#client.botName}"`);
+			debug(`Initialized for bot "${this.#client.botName}"`);
 		};
 
 		if (document.readyState === 'loading') {
@@ -158,6 +197,7 @@ class CodexChatMentions {
 
 	#startDomObserver() {
 		if (!globalThis.MutationObserver || this.#domObserver) {
+			debug('MutationObserver unavailable or already installed');
 			return;
 		}
 
@@ -166,6 +206,7 @@ class CodexChatMentions {
 			childList: true,
 			subtree: true,
 		});
+		debug('MutationObserver installed');
 	}
 
 	#cleanup() {
@@ -206,6 +247,7 @@ class CodexChatMentions {
 
 		this.#lastComposer = composer;
 		this.#lastChatHref = globalThis.location?.href || this.#lastChatHref;
+		debug('Composer focused', this.#describeElement(composer));
 	}
 
 	#handleKeydown(event) {
@@ -223,6 +265,10 @@ class CodexChatMentions {
 		}
 
 		this.#lastComposer = composer;
+		debug('Enter pressed in composer', {
+			...this.#describeElement(composer),
+			textLength: this.#getComposerText(composer).length,
+		});
 		this.#handlePotentialTrigger(composer, event);
 	}
 
@@ -241,6 +287,10 @@ class CodexChatMentions {
 			return;
 		}
 
+		debug('Send button clicked', {
+			...this.#describeElement(button),
+			composer: this.#describeElement(composer),
+		});
 		this.#handlePotentialTrigger(composer, event);
 	}
 
@@ -248,6 +298,11 @@ class CodexChatMentions {
 		const rawText = this.#getComposerText(composer);
 		const trigger = extractBotMentionTrigger(rawText, this.#client);
 		if (!trigger) {
+			debug('No bot mention found in composer text', {
+				href: globalThis.location?.href || '',
+				composer: this.#describeElement(composer),
+				textPreview: normalizeComposerText(rawText).slice(0, 120),
+			});
 			return;
 		}
 
@@ -262,6 +317,11 @@ class CodexChatMentions {
 		this.#lastTriggerSignature = signature;
 		this.#lastTriggerAt = now;
 		this.#lastChatHref = chatHref;
+		debug('Bot mention detected', {
+			addressedAs: trigger.addressedAs,
+			questionPreview: trigger.normalizedQuestion.slice(0, 200),
+			chatHref,
+		});
 
 		const replyTask = this.#sendReplyAfterCodex(trigger, {
 			chatHref,
@@ -282,11 +342,15 @@ class CodexChatMentions {
 			});
 
 			if (result.ignored || !result.answer) {
+				debug('Codex request ignored or returned no answer', {
+					ignored: result.ignored,
+					reason: result.reason,
+				});
 				return;
 			}
 
 			if ((globalThis.location?.href || '') !== chatHref) {
-				console.warn(`${LOG_PREFIX} Chat changed before reply was ready, skipping send`);
+				warn('Chat changed before reply was ready, skipping send', { chatHref });
 				return;
 			}
 
@@ -297,18 +361,26 @@ class CodexChatMentions {
 			);
 
 			if (!replyBody) {
+				debug('Codex answer was empty after formatting, skipping reply');
 				return;
 			}
 
 			const ready = await this.#waitForComposerReadiness(originalComposerText, chatHref);
 			if (!ready) {
-				console.warn(`${LOG_PREFIX} Composer was not ready for reply send`);
+				warn('Composer was not ready for reply send', {
+					chatHref,
+					originalComposerText: normalizeComposerText(originalComposerText).slice(0, 200),
+				});
 				return;
 			}
 
+			debug('Codex response ready for send', {
+				answerPreview: result.answer.slice(0, 200),
+				replyPreview: replyBody.slice(0, 200),
+			});
 			await this.#postReply(replyBody);
-		} catch (error) {
-			console.error(`${LOG_PREFIX} Failed to process mention:`, error.message);
+		} catch (err) {
+			error('Failed to process mention', { message: err.message, stack: err.stack });
 		}
 	}
 
@@ -342,31 +414,38 @@ class CodexChatMentions {
 	async #postReply(replyBody) {
 		const composer = this.#findLikelyComposer() || this.#lastComposer;
 		if (!this.#isLikelyComposer(composer)) {
-			console.warn(`${LOG_PREFIX} No composer available for reply`);
+			warn('No composer available for reply');
 			return;
 		}
 
 		if ((globalThis.location?.href || '') !== this.#lastChatHref) {
-			console.warn(`${LOG_PREFIX} Chat changed before reply send, skipping`);
+			warn('Chat changed before reply send, skipping', { chatHref: this.#lastChatHref });
 			return;
 		}
 
 		this.#setSuppression(true);
 
 		try {
+			debug('Writing reply into composer', {
+				composer: this.#describeElement(composer),
+				replyLength: replyBody.length,
+			});
 			this.#setComposerText(composer, replyBody);
 			await new Promise((resolve) => setTimeout(resolve, 75));
 
 			const sendButton = this.#findSendButton(composer);
 			if (sendButton && !sendButton.disabled) {
+				debug('Clicking send button', this.#describeElement(sendButton));
 				sendButton.click();
 			} else {
+				debug('Falling back to Enter key send');
 				this.#dispatchEnter(composer);
 			}
 
 			await new Promise((resolve) => setTimeout(resolve, 100));
 			const remainingText = normalizeComposerText(this.#getComposerText(composer));
 			if (remainingText === normalizeComposerText(replyBody)) {
+				debug('Reply text still present after send attempt, dispatching Enter fallback');
 				this.#dispatchEnter(composer);
 			}
 		} finally {
@@ -482,12 +561,15 @@ class CodexChatMentions {
 
 	#findLikelyComposer() {
 		const candidates = document.querySelectorAll('textarea, input[role="textbox"], [contenteditable="true"]');
+		debug('Scanning for composer candidates', { count: candidates.length });
 		for (const candidate of candidates) {
 			if (this.#isLikelyComposer(candidate)) {
+				debug('Composer candidate selected', this.#describeElement(candidate));
 				return candidate;
 			}
 		}
 
+		debug('No composer candidate matched');
 		return null;
 	}
 
@@ -537,6 +619,22 @@ class CodexChatMentions {
 		}
 
 		return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+	}
+
+	#describeElement(element) {
+		if (!element) {
+			return null;
+		}
+
+		return {
+			tagName: element.tagName || null,
+			role: element.getAttribute?.('role') || null,
+			ariaLabel: element.getAttribute?.('aria-label') || null,
+			placeholder: element.getAttribute?.('placeholder') || null,
+			title: element.getAttribute?.('title') || null,
+			dataTid: element.dataset?.tid || null,
+			isContentEditable: !!element.isContentEditable,
+		};
 	}
 }
 

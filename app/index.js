@@ -173,6 +173,21 @@ if (gotTheLock) {
 
   // Restart application when configuration file changes
   ipcMain.on("config-file-changed", restartApp);
+  ipcMain.on("codex-chat-debug-log", (_event, payload) => {
+    const level = typeof payload?.level === "string" ? payload.level : "info";
+    const message = typeof payload?.message === "string" ? payload.message : "";
+    const data = payload?.data;
+
+    if (level === "warn") {
+      console.warn(`[CODEX_CHAT] ${message}`, data);
+    } else if (level === "error") {
+      console.error(`[CODEX_CHAT] ${message}`, data);
+    } else if (data !== undefined) {
+      console.info(`[CODEX_CHAT] ${message}`, data);
+    } else {
+      console.info(`[CODEX_CHAT] ${message}`);
+    }
+  });
   // Get current application configuration
   ipcMain.handle("get-config", async () => {
     return config;

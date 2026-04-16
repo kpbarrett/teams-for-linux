@@ -551,6 +551,8 @@ function extractYargConfig(configObject, appVersion) {
           enabled: false,
           endpoint: "http://127.0.0.1:8765/ask",
           apiKey: "",
+          botName: "codex",
+          aliases: [],
           timeoutMs: 15000,
           maxQuestionLength: 4000,
           maxContextLength: 20000,

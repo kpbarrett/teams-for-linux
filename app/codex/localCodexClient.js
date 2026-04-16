@@ -6,6 +6,67 @@ class LocalCodexClient {
     this.timeoutMs = Number(config.timeoutMs) > 0 ? Number(config.timeoutMs) : 15000;
     this.maxQuestionLength = Number(config.maxQuestionLength) > 0 ? Number(config.maxQuestionLength) : 4000;
     this.maxContextLength = Number(config.maxContextLength) > 0 ? Number(config.maxContextLength) : 20000;
+
+    this.botName = this.normalizeAlias(config.botName || "codex");
+
+    const aliasesFromConfig = Array.isArray(config.aliases) ? config.aliases : [];
+    const normalizedAliases = aliasesFromConfig
+      .map((alias) => this.normalizeAlias(alias))
+      .filter(Boolean);
+
+    this.botAliases = new Set([
+      this.botName,
+      `ask-${this.botName}`,
+      ...normalizedAliases,
+    ]);
+  }
+
+  normalizeAlias(value) {
+    if (typeof value !== "string") {
+      return "";
+    }
+
+    return value.trim().toLowerCase().replace(/^@+/, "");
+  }
+
+  extractMentions(question) {
+    if (typeof question !== "string") {
+      return [];
+    }
+
+    return [...question.matchAll(/@([a-zA-Z0-9_-]+)/g)]
+      .map((match) => this.normalizeAlias(match[1]))
+      .filter(Boolean);
+  }
+
+  parseTarget(question) {
+    const mentions = this.extractMentions(question);
+
+    if (mentions.length === 0) {
+      return {
+        shouldHandle: true,
+        addressedAs: null,
+        normalizedQuestion: question,
+      };
+    }
+
+    const addressedAs = mentions.find((mention) => this.botAliases.has(mention));
+    if (!addressedAs) {
+      return {
+        shouldHandle: false,
+        addressedAs: null,
+        normalizedQuestion: question,
+      };
+    }
+
+    const mentionPattern = new RegExp(`@${addressedAs}\\b`, "ig");
+    const normalizedQuestion = question.replace(mentionPattern, "").replace(/\s+/g, " ").trim();
+
+    return {
+      shouldHandle: true,
+      addressedAs,
+      normalizedQuestion,
+    };
   }
 
   validatePayload({ question, context }) {
@@ -31,7 +92,15 @@ class LocalCodexClient {
       throw new Error("Local Codex client is disabled");
     }
 
-    this.validatePayload({ question, context });
+    const parsedTarget = this.parseTarget(question);
+    if (!parsedTarget.shouldHandle) {
+      return {
+        ignored: true,
+        reason: "question-targeted-to-another-bot",
+      };
+    }
+
+    this.validatePayload({ question: parsedTarget.normalizedQuestion, context });
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -50,10 +119,12 @@ class LocalCodexClient {
         headers,
         signal: controller.signal,
         body: JSON.stringify({
-          question,
+          question: parsedTarget.normalizedQuestion,
           context,
           requestId,
           conversationId,
+          botName: this.botName,
+          addressedAs: parsedTarget.addressedAs,
         }),
       });
 
@@ -67,9 +138,11 @@ class LocalCodexClient {
       }
 
       return {
+        ignored: false,
         answer: payload.answer,
         conversationId: payload.conversationId || conversationId || null,
         model: payload.model || null,
+        addressedAs: parsedTarget.addressedAs,
       };
     } catch (error) {
       if (error.name === "AbortError") {

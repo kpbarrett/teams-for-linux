@@ -120,6 +120,9 @@ Command messages should be sent as JSON with the following structure:
 
 When `ask-codex` is executed successfully, the app publishes a response payload to `{topicPrefix}/codex/response`.
 
+For multi-user/shared-topic setups, configure a unique bot identity per machine using `codex.botName` (and optional `codex.aliases`). Then address a specific bot by mention, for example `@ask-fido` or `@fido`. Each instance only answers when one of its aliases is mentioned.
+
+
 #### Command Security
 
 Commands are validated with the following security measures:

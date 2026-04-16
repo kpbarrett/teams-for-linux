@@ -329,12 +329,19 @@ function initializeMqtt() {
 
     try {
       const result = await localCodexClient.ask({ question, context, requestId, conversationId });
+      if (result.ignored) {
+        console.debug('[CODEX] ask-codex ignored: command targeted another bot');
+        return;
+      }
+
       await mqttClient.publishToTopic('codex/response', {
         requestId: requestId || null,
         conversationId: result.conversationId || conversationId || null,
         success: true,
         answer: result.answer,
         model: result.model,
+        addressedAs: result.addressedAs,
+        botName: localCodexClient.botName,
         timestamp: new Date().toISOString(),
       });
       console.info('[CODEX] ask-codex command completed');

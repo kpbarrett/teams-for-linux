@@ -28,7 +28,9 @@ class MQTTClient extends EventEmitter {
 			'toggle-hand-raise': 'Ctrl+Shift+K'
 		};
 
-		this.nonShortcutActions = ['get-calendar'];
+		this.nonShortcutActions = ['get-calendar', 'ask-codex'];
+		this.maxCodexQuestionLength = 4000;
+		this.maxCodexContextLength = 20000;
 	}
 
 	/**
@@ -208,6 +210,35 @@ class MQTTClient extends EventEmitter {
 		}
 	}
 
+
+	validateCodexCommand(command) {
+		if (command.action !== 'ask-codex') {
+			return true;
+		}
+
+		if (typeof command.question !== 'string' || command.question.trim().length === 0) {
+			console.warn('[MQTT] Invalid ask-codex command: question must be a non-empty string');
+			return false;
+		}
+
+		if (command.question.length > this.maxCodexQuestionLength) {
+			console.warn('[MQTT] Invalid ask-codex command: question is too large');
+			return false;
+		}
+
+		if (command.context !== undefined && typeof command.context !== 'string') {
+			console.warn('[MQTT] Invalid ask-codex command: context must be a string when provided');
+			return false;
+		}
+
+		if (typeof command.context === 'string' && command.context.length > this.maxCodexContextLength) {
+			console.warn('[MQTT] Invalid ask-codex command: context is too large');
+			return false;
+		}
+
+		return true;
+	}
+
 	/**
 	 * Handle incoming MQTT command
 	 * Validates command messages and emits 'command' event for execution
@@ -239,6 +270,10 @@ class MQTTClient extends EventEmitter {
 			// Whitelist validation
 			if (!this.allowedActions.includes(command.action)) {
 				console.warn(`[MQTT] Invalid command: action '${command.action}' not in whitelist`);
+				return;
+			}
+
+			if (!this.validateCodexCommand(command)) {
 				return;
 			}
 

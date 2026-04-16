@@ -546,6 +546,20 @@ function extractYargConfig(configObject, appVersion) {
         describe: "Microsoft Graph API integration for enhanced Teams functionality (calendar, user profile, etc.)",
         type: "object",
       },
+      codex: {
+        default: {
+          enabled: false,
+          endpoint: "http://127.0.0.1:8765/ask",
+          apiKey: "",
+          botName: "codex",
+          aliases: [],
+          timeoutMs: 15000,
+          maxQuestionLength: 4000,
+          maxContextLength: 20000,
+        },
+        describe: "Local Codex bot integration configuration for ask-codex MQTT commands",
+        type: "object",
+      },
       auth: {
         default: {
           intune: {

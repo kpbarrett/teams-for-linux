@@ -2,7 +2,7 @@
 
 This module provides bidirectional MQTT integration for Teams for Linux, allowing you to:
 - **Publish** your Teams status to an MQTT broker for home automation
-- **Receive** action commands from MQTT to control Teams (toggle mute, video, etc.)
+- **Receive** action commands from MQTT to control Teams (toggle mute, video, local Codex prompts, etc.)
 
 ## Features
 
@@ -102,6 +102,26 @@ Command messages should be sent as JSON with the following structure:
 - `toggle-mute` - Toggle microphone mute (Ctrl+Shift+M)
 - `toggle-video` - Toggle video on/off (Ctrl+Shift+O)
 - `toggle-hand-raise` - Toggle hand raise in meeting (Ctrl+Shift+K)
+- `ask-codex` - Send a question + optional context to a local Codex HTTP endpoint and publish the answer to `teams/codex/response`
+
+
+
+#### ask-codex command payload
+
+```json
+{
+  "action": "ask-codex",
+  "question": "Summarize my open PR comments",
+  "context": "Optional conversation context",
+  "requestId": "optional-request-id",
+  "conversationId": "optional-conversation-id"
+}
+```
+
+When `ask-codex` is executed successfully, the app publishes a response payload to `{topicPrefix}/codex/response`.
+
+For multi-user/shared-topic setups, configure a unique bot identity per machine using `codex.botName` (and optional `codex.aliases`). Then address a specific bot by mention, for example `@ask-fido` or `@fido`. Each instance only answers when one of its aliases is mentioned.
+
 
 #### Command Security
 

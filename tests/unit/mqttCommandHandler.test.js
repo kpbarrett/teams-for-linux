@@ -69,6 +69,27 @@ describe('MQTT handleCommand - valid commands', () => {
 		assert.strictEqual(emitted.shortcut, undefined);
 	});
 
+
+	it('emits command event for ask-codex with question and context', () => {
+		const client = createClient();
+		let emitted = null;
+		client.on('command', (cmd) => { emitted = cmd; });
+
+		client.handleCommand(JSON.stringify({
+			action: 'ask-codex',
+			question: 'What changed?',
+			context: 'Summarize previous thread',
+			requestId: 'req-1'
+		}));
+
+		assert.ok(emitted);
+		assert.strictEqual(emitted.action, 'ask-codex');
+		assert.strictEqual(emitted.question, 'What changed?');
+		assert.strictEqual(emitted.context, 'Summarize previous thread');
+		assert.strictEqual(emitted.requestId, 'req-1');
+		assert.strictEqual(emitted.shortcut, undefined);
+	});
+
 	it('preserves extra fields from command payload', () => {
 		const client = createClient();
 		let emitted = null;
@@ -146,6 +167,44 @@ describe('MQTT handleCommand - invalid commands', () => {
 		assert.strictEqual(emitted, false);
 	});
 
+
+	it('rejects ask-codex when question is missing', () => {
+		const client = createClient();
+		let emitted = false;
+		client.on('command', () => { emitted = true; });
+
+		client.handleCommand(JSON.stringify({ action: 'ask-codex', context: 'abc' }));
+
+		assert.strictEqual(emitted, false);
+	});
+
+	it('rejects ask-codex when question is too large', () => {
+		const client = createClient();
+		let emitted = false;
+		client.on('command', () => { emitted = true; });
+
+		client.handleCommand(JSON.stringify({
+			action: 'ask-codex',
+			question: 'x'.repeat(client.maxCodexQuestionLength + 1)
+		}));
+
+		assert.strictEqual(emitted, false);
+	});
+
+	it('rejects ask-codex when context is not a string', () => {
+		const client = createClient();
+		let emitted = false;
+		client.on('command', () => { emitted = true; });
+
+		client.handleCommand(JSON.stringify({
+			action: 'ask-codex',
+			question: 'Hello',
+			context: { invalid: true }
+		}));
+
+		assert.strictEqual(emitted, false);
+	});
+
 	it('rejects empty message', () => {
 		const client = createClient();
 		let emitted = false;
@@ -170,6 +229,7 @@ describe('MQTT allowedActions', () => {
 	it('includes non-shortcut actions', () => {
 		const client = createClient();
 		assert.ok(client.allowedActions.includes('get-calendar'));
+		assert.ok(client.allowedActions.includes('ask-codex'));
 	});
 
 	it('does not include arbitrary strings', () => {

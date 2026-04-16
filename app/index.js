@@ -22,6 +22,7 @@ const ScreenSharingService = require("./screenSharing/service");
 const PartitionsManager = require("./partitions/manager");
 const IdleMonitor = require("./idle/monitor");
 const AutoUpdater = require("./autoUpdater");
+const LocalCodexClient = require("./codex/localCodexClient");
 const os = require("node:os");
 const isMac = os.platform() === "darwin";
 
@@ -89,6 +90,7 @@ let mqttClient = null;
 let mqttMediaStatusService = null;
 let graphApiClient = null;
 let quickChatManager = null;
+let localCodexClient = null;
 
 const { createPlayer } = require("./audio/player");
 const player = createPlayer();
@@ -312,11 +314,49 @@ function initializeMqtt() {
     }
   }
 
+  async function handleAskCodexCommand({ question, context, requestId, conversationId }) {
+    if (!localCodexClient) {
+      console.error('[CODEX] ask-codex failed: local client is not configured');
+      await mqttClient.publishToTopic('codex/response', {
+        requestId: requestId || null,
+        conversationId: conversationId || null,
+        success: false,
+        error: 'Local Codex client is not configured',
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    try {
+      const result = await localCodexClient.ask({ question, context, requestId, conversationId });
+      await mqttClient.publishToTopic('codex/response', {
+        requestId: requestId || null,
+        conversationId: result.conversationId || conversationId || null,
+        success: true,
+        answer: result.answer,
+        model: result.model,
+        timestamp: new Date().toISOString(),
+      });
+      console.info('[CODEX] ask-codex command completed');
+    } catch (error) {
+      console.error('[CODEX] ask-codex command failed:', error.message);
+      await mqttClient.publishToTopic('codex/response', {
+        requestId: requestId || null,
+        conversationId: conversationId || null,
+        success: false,
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
   async function handleMqttCommand(command) {
     const { action } = command;
 
     if (action === 'get-calendar') {
       await handleGetCalendarCommand(command);
+    } else if (action === 'ask-codex') {
+      await handleAskCodexCommand(command);
     } else {
       handleShortcutCommand(command);
     }
@@ -365,6 +405,16 @@ function loadMenuToggleSettings() {
       config[setting] = appConfig.legacyConfigStore.get(setting);
     }
   }
+}
+
+
+function initializeCodexClient() {
+  if (!config.codex?.enabled) {
+    return;
+  }
+
+  localCodexClient = new LocalCodexClient(config.codex);
+  console.info('[CODEX] Local Codex client initialized');
 }
 
 function initializeGraphApiClient() {
@@ -434,6 +484,7 @@ async function handleAppReady() {
     process.stdout.on("error", () => {});
 
     initializeCacheManagement();
+    initializeCodexClient();
 
     if (config.mqtt?.enabled) {
       initializeMqtt();

@@ -334,17 +334,27 @@ class CodexChatMentions {
 		});
 	}
 
+	#askCodex(payload) {
+		if (!globalThis.electronAPI?.codex?.ask) {
+			throw new Error('Codex IPC bridge is unavailable');
+		}
+
+		return globalThis.electronAPI.codex.ask(payload);
+	}
+
 	async #sendReplyAfterCodex(trigger, { chatHref, originalComposerText }) {
 		try {
-			const result = await this.#client.ask({
+			const result = await this.#askCodex({
 				question: trigger.normalizedQuestion,
 				context: '',
 			});
 
-			if (result.ignored || !result.answer) {
-				debug('Codex request ignored or returned no answer', {
+			if (result.ignored || result.success === false || !result.answer) {
+				debug('Codex request ignored, failed, or returned no answer', {
 					ignored: result.ignored,
+					success: result.success,
 					reason: result.reason,
+					error: result.error,
 				});
 				return;
 			}

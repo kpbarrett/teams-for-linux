@@ -33,6 +33,11 @@ globalThis.electronAPI = {
   // Configuration
   getConfig: () => ipcRenderer.invoke("get-config"),
 
+  // Codex assistant requests
+  codex: {
+    ask: (payload) => ipcRenderer.invoke("codex-ask", payload),
+  },
+
   // Notifications with input validation
   showNotification: (options) => {
     if (!options || typeof options !== 'object') {

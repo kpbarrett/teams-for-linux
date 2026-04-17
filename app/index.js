@@ -439,6 +439,69 @@ function initializeCodexClient() {
   console.info('[CODEX] Local Codex client initialized');
 }
 
+function registerCodexIpcHandlers() {
+  ipcMain.handle('codex-ask', async (_event, payload) => {
+    const question = typeof payload?.question === 'string' ? payload.question : '';
+    const context = typeof payload?.context === 'string' ? payload.context : '';
+    const requestId = typeof payload?.requestId === 'string' || typeof payload?.requestId === 'number'
+      ? payload.requestId
+      : null;
+    const conversationId = typeof payload?.conversationId === 'string' || payload?.conversationId === null
+      ? payload.conversationId
+      : null;
+
+    if (!localCodexClient) {
+      console.error('[CODEX] codex-ask failed: local client is not configured');
+      return {
+        success: false,
+        error: 'Local Codex client is not configured',
+      };
+    }
+
+    if (!question.trim()) {
+      return {
+        success: false,
+        error: 'Question must be a non-empty string',
+      };
+    }
+
+    try {
+      console.info('[CODEX] codex-ask request received');
+      const result = await localCodexClient.ask({
+        question,
+        context,
+        requestId,
+        conversationId,
+      });
+
+      if (result.ignored) {
+        console.debug('[CODEX] codex-ask ignored: command targeted another bot');
+        return {
+          success: false,
+          ignored: true,
+          reason: result.reason || 'question-targeted-to-another-bot',
+        };
+      }
+
+      console.info('[CODEX] codex-ask request completed');
+      return {
+        success: true,
+        answer: result.answer,
+        conversationId: result.conversationId || conversationId || null,
+        model: result.model || null,
+        addressedAs: result.addressedAs || null,
+        botName: localCodexClient.botName,
+      };
+    } catch (error) {
+      console.error('[CODEX] codex-ask request failed:', error.message);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  });
+}
+
 function initializeGraphApiClient() {
   if (!config.graphApi?.enabled) return;
 
@@ -520,6 +583,7 @@ async function handleAppReady() {
 
     initializeGraphApiClient();
     registerGraphApiHandlers(ipcMain, graphApiClient);
+    registerCodexIpcHandlers();
     initializeQuickChat();
     registerGlobalShortcuts(config, mainAppWindow, app);
     initializeAutoUpdater();

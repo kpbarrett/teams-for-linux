@@ -561,7 +561,7 @@ function extractYargConfig(configObject, appVersion) {
           maxQuestionLength: 4000,
           maxContextLength: 20000,
         },
-        describe: "Local Codex bot integration for ask-codex MQTT commands and in-chat mention replies",
+        describe: "Local Codex bot integration for ask-codex MQTT commands and in-chat mention replies; requires a separate local Codex backend service listening on codex.endpoint",
         type: "object",
       },
       auth: {

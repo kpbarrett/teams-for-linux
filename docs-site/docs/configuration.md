@@ -437,7 +437,7 @@ All topics use retained messages by default, ensuring subscribers receive the la
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `codex.enabled` | `boolean` | `false` | Enable local Codex integration for MQTT `ask-codex` commands and direct in-chat mention replies |
+| `codex.enabled` | `boolean` | `false` | Enable local Codex integration for MQTT `ask-codex` commands and direct in-chat mention replies. Requires a separate local Codex backend service listening on `codex.endpoint` |
 | `codex.endpoint` | `string` | `"http://127.0.0.1:8765/ask"` | Local Codex HTTP endpoint |
 | `codex.apiKey` | `string` | `""` | Optional bearer token for the local Codex endpoint |
 | `codex.botName` | `string` | `"codex"` | Bot name used for mention matching and reply labels |
@@ -463,7 +463,7 @@ All topics use retained messages by default, ensuring subscribers receive the la
 ```
 
 > [!NOTE]
-> Direct in-chat replies are only triggered by explicit mentions of the configured bot name or aliases. The message is forwarded to the local Codex backend and the reply is posted back into the active Teams chat as the signed-in user.
+> Direct in-chat replies are only triggered by explicit mentions of the configured bot name or aliases. The message is forwarded to the local Codex backend and the reply is posted back into the active Teams chat as the signed-in user. Start the separate Codex backend service before enabling this feature.
 
 ### Performance & Hardware
 

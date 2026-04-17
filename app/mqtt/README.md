@@ -102,7 +102,7 @@ Command messages should be sent as JSON with the following structure:
 - `toggle-mute` - Toggle microphone mute (Ctrl+Shift+M)
 - `toggle-video` - Toggle video on/off (Ctrl+Shift+O)
 - `toggle-hand-raise` - Toggle hand raise in meeting (Ctrl+Shift+K)
-- `ask-codex` - Send a question + optional context to a local Codex HTTP endpoint and publish the answer to `teams/codex/response`
+- `ask-codex` - Send a question + optional context to a local Codex HTTP endpoint and publish the answer to `teams/codex/response`. This requires a separate local Codex backend service listening on `codex.endpoint`
 
 
 

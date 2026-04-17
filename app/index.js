@@ -436,7 +436,7 @@ function initializeCodexClient() {
   }
 
   localCodexClient = new LocalCodexClient(config.codex);
-  console.info('[CODEX] Local Codex client initialized');
+  console.info('[CODEX] Local Codex client initialized; start a local Codex backend service listening at', config.codex.endpoint);
 }
 
 function registerCodexIpcHandlers() {

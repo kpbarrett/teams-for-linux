@@ -34,7 +34,7 @@ As a Teams for Linux user, I want to mention my local bot by name in a chat mess
 
 - Detect explicit bot mentions in Teams chat messages.
 - Normalize mention matching so `@routie`, `@ask-routie`, and configured aliases can all target the same bot.
-- Send the message text to the existing local Codex backend.
+- Send the message text to the existing local Codex backend service listening on `codex.endpoint`.
 - Insert a reply into the same chat as the signed-in user.
 - Format the reply with a visible intro line and a blockquote body.
 - Avoid reply loops, duplicate sends, and accidental responses to unrelated messages.

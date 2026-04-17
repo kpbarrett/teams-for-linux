@@ -69,6 +69,10 @@ function titleCase(value) {
 		.join(' ');
 }
 
+function isBackendUnavailableResult(result) {
+	return result?.errorCode === 'backend-unavailable';
+}
+
 function formatQuotedReply(botLabel, answer, replyPrefix = DEFAULT_REPLY_PREFIX) {
 	const normalizedAnswer = normalizeText(answer);
 	if (!normalizedAnswer) {
@@ -342,6 +346,20 @@ class CodexChatMentions {
 		return globalThis.electronAPI.codex.ask(payload);
 	}
 
+	#showBackendUnavailableToast() {
+		if (!globalThis.electronAPI?.sendNotificationToast) {
+			warn('Notification API unavailable for backend-down toast');
+			return;
+		}
+
+		globalThis.electronAPI.sendNotificationToast({
+			id: globalThis.crypto?.randomUUID?.() || String(Date.now()),
+			timestamp: Date.now(),
+			title: 'Codex service unavailable',
+			body: 'Start the local Codex backend service at ' + (this.#client?.endpoint || 'http://127.0.0.1:8765/ask') + ' and try again.',
+		});
+	}
+
 	async #sendReplyAfterCodex(trigger, { chatHref, originalComposerText }) {
 		try {
 			const result = await this.#askCodex({
@@ -355,7 +373,11 @@ class CodexChatMentions {
 					success: result.success,
 					reason: result.reason,
 					error: result.error,
+					errorCode: result.errorCode,
 				});
+				if (isBackendUnavailableResult(result)) {
+					this.#showBackendUnavailableToast();
+				}
 				return;
 			}
 

@@ -430,6 +430,26 @@ function loadMenuToggleSettings() {
 }
 
 
+function isCodexBackendUnavailableError(error) {
+  if (!error) {
+    return false;
+  }
+
+  const message = typeof error.message === 'string' ? error.message.toLowerCase() : '';
+  const causeCode = typeof error.cause?.code === 'string' ? error.cause.code.toUpperCase() : '';
+
+  return (
+    message.includes('fetch failed') ||
+    message.includes('connect') ||
+    message.includes('econnrefused') ||
+    message.includes('etimedout') ||
+    message.includes('enotfound') ||
+    causeCode === 'ECONNREFUSED' ||
+    causeCode === 'ETIMEDOUT' ||
+    causeCode === 'ENOTFOUND'
+  );
+}
+
 function initializeCodexClient() {
   if (!config.codex?.enabled) {
     return;
@@ -493,10 +513,15 @@ function registerCodexIpcHandlers() {
         botName: localCodexClient.botName,
       };
     } catch (error) {
-      console.error('[CODEX] codex-ask request failed:', error.message);
+      const backendUnavailable = isCodexBackendUnavailableError(error);
+      console.error('[CODEX] codex-ask request failed:', {
+        message: error.message,
+        backendUnavailable,
+      });
       return {
         success: false,
         error: error.message,
+        errorCode: backendUnavailable ? 'backend-unavailable' : 'request-failed',
       };
     }
   });

@@ -33,6 +33,11 @@ globalThis.electronAPI = {
   // Configuration
   getConfig: () => ipcRenderer.invoke("get-config"),
 
+  // Codex assistant requests
+  codex: {
+    ask: (payload) => ipcRenderer.invoke("codex-ask", payload),
+  },
+
   // Notifications with input validation
   showNotification: (options) => {
     if (!options || typeof options !== 'object') {
@@ -349,6 +354,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       { name: "mqttStatusMonitor", path: "./tools/mqttStatusMonitor" },
       { name: "disableAutogain", path: "./tools/disableAutogain" },
       { name: "speakingIndicator", path: "./tools/speakingIndicator" },
+      { name: "codexChatMentions", path: "./tools/codexChatMentions" },
       { name: "cameraResolution", path: "./tools/cameraResolution" },
       { name: "cameraAspectRatio", path: "./tools/cameraAspectRatio" },
       { name: "navigationButtons", path: "./tools/navigationButtons" },

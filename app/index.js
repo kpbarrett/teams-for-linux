@@ -173,6 +173,21 @@ if (gotTheLock) {
 
   // Restart application when configuration file changes
   ipcMain.on("config-file-changed", restartApp);
+  ipcMain.on("codex-chat-debug-log", (_event, payload) => {
+    const level = typeof payload?.level === "string" ? payload.level : "info";
+    const message = typeof payload?.message === "string" ? payload.message : "";
+    const data = payload?.data;
+
+    if (level === "warn") {
+      console.warn(`[CODEX_CHAT] ${message}`, data);
+    } else if (level === "error") {
+      console.error(`[CODEX_CHAT] ${message}`, data);
+    } else if (data !== undefined) {
+      console.info(`[CODEX_CHAT] ${message}`, data);
+    } else {
+      console.info(`[CODEX_CHAT] ${message}`);
+    }
+  });
   // Get current application configuration
   ipcMain.handle("get-config", async () => {
     return config;
@@ -415,13 +430,101 @@ function loadMenuToggleSettings() {
 }
 
 
+function isCodexBackendUnavailableError(error) {
+  if (!error) {
+    return false;
+  }
+
+  const message = typeof error.message === 'string' ? error.message.toLowerCase() : '';
+  const causeCode = typeof error.cause?.code === 'string' ? error.cause.code.toUpperCase() : '';
+
+  return (
+    message.includes('fetch failed') ||
+    message.includes('connect') ||
+    message.includes('econnrefused') ||
+    message.includes('etimedout') ||
+    message.includes('enotfound') ||
+    causeCode === 'ECONNREFUSED' ||
+    causeCode === 'ETIMEDOUT' ||
+    causeCode === 'ENOTFOUND'
+  );
+}
+
 function initializeCodexClient() {
   if (!config.codex?.enabled) {
     return;
   }
 
   localCodexClient = new LocalCodexClient(config.codex);
-  console.info('[CODEX] Local Codex client initialized');
+  console.info('[CODEX] Local Codex client initialized; start a local Codex backend service listening at', config.codex.endpoint);
+}
+
+function registerCodexIpcHandlers() {
+  ipcMain.handle('codex-ask', async (_event, payload) => {
+    const question = typeof payload?.question === 'string' ? payload.question : '';
+    const context = typeof payload?.context === 'string' ? payload.context : '';
+    const requestId = typeof payload?.requestId === 'string' || typeof payload?.requestId === 'number'
+      ? payload.requestId
+      : null;
+    const conversationId = typeof payload?.conversationId === 'string' || payload?.conversationId === null
+      ? payload.conversationId
+      : null;
+
+    if (!localCodexClient) {
+      console.error('[CODEX] codex-ask failed: local client is not configured');
+      return {
+        success: false,
+        error: 'Local Codex client is not configured',
+      };
+    }
+
+    if (!question.trim()) {
+      return {
+        success: false,
+        error: 'Question must be a non-empty string',
+      };
+    }
+
+    try {
+      console.info('[CODEX] codex-ask request received');
+      const result = await localCodexClient.ask({
+        question,
+        context,
+        requestId,
+        conversationId,
+      });
+
+      if (result.ignored) {
+        console.debug('[CODEX] codex-ask ignored: command targeted another bot');
+        return {
+          success: false,
+          ignored: true,
+          reason: result.reason || 'question-targeted-to-another-bot',
+        };
+      }
+
+      console.info('[CODEX] codex-ask request completed');
+      return {
+        success: true,
+        answer: result.answer,
+        conversationId: result.conversationId || conversationId || null,
+        model: result.model || null,
+        addressedAs: result.addressedAs || null,
+        botName: localCodexClient.botName,
+      };
+    } catch (error) {
+      const backendUnavailable = isCodexBackendUnavailableError(error);
+      console.error('[CODEX] codex-ask request failed:', {
+        message: error.message,
+        backendUnavailable,
+      });
+      return {
+        success: false,
+        error: error.message,
+        errorCode: backendUnavailable ? 'backend-unavailable' : 'request-failed',
+      };
+    }
+  });
 }
 
 function initializeGraphApiClient() {
@@ -505,6 +608,7 @@ async function handleAppReady() {
 
     initializeGraphApiClient();
     registerGraphApiHandlers(ipcMain, graphApiClient);
+    registerCodexIpcHandlers();
     initializeQuickChat();
     registerGlobalShortcuts(config, mainAppWindow, app);
     initializeAutoUpdater();

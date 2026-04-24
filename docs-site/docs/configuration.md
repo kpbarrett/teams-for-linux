@@ -433,6 +433,38 @@ All topics use retained messages by default, ensuring subscribers receive the la
 > [!NOTE]
 > Quick Chat requires Graph API to be enabled (`graphApi.enabled: true`) for contact search and inline messaging. The modal allows you to search for contacts, click to compose a message, and send it directly without leaving your current context. The keyboard shortcut uses Electron accelerator format. No shortcut is registered by default; you must provide one explicitly.
 
+### Codex Integration
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `codex.enabled` | `boolean` | `false` | Enable local Codex integration for MQTT `ask-codex` commands and direct in-chat mention replies. Requires a separate local Codex backend service listening on `codex.endpoint` |
+| `codex.endpoint` | `string` | `"http://127.0.0.1:8765/ask"` | Local Codex HTTP endpoint |
+| `codex.apiKey` | `string` | `""` | Optional bearer token for the local Codex endpoint |
+| `codex.botName` | `string` | `"codex"` | Bot name used for mention matching and reply labels |
+| `codex.aliases` | `array` | `[]` | Additional mention aliases for the bot |
+| `codex.chat.enabled` | `boolean` | `true` | Enable direct in-chat mention replies |
+| `codex.chat.replyPrefix` | `string` | `"says:"` | Text shown after the bot name in the reply intro |
+| `codex.timeoutMs` | `number` | `15000` | Timeout for Codex requests in milliseconds |
+| `codex.maxQuestionLength` | `number` | `4000` | Maximum direct-chat question length |
+| `codex.maxContextLength` | `number` | `20000` | Maximum context length for Codex requests |
+
+```json title="Example Configuration"
+{
+  "codex": {
+    "enabled": true,
+    "botName": "routie",
+    "aliases": ["ask-routie"],
+    "chat": {
+      "enabled": true,
+      "replyPrefix": "says:"
+    }
+  }
+}
+```
+
+> [!NOTE]
+> Direct in-chat replies are only triggered by explicit mentions of the configured bot name or aliases. The message is forwarded to the local Codex backend and the reply is posted back into the active Teams chat as the signed-in user. Start the separate Codex backend service before enabling this feature.
+
 ### Performance & Hardware
 
 | Option | Type | Default | Description |

@@ -553,11 +553,15 @@ function extractYargConfig(configObject, appVersion) {
           apiKey: "",
           botName: "codex",
           aliases: [],
+          chat: {
+            enabled: true,
+            replyPrefix: "says:",
+          },
           timeoutMs: 15000,
           maxQuestionLength: 4000,
           maxContextLength: 20000,
         },
-        describe: "Local Codex bot integration configuration for ask-codex MQTT commands",
+        describe: "Local Codex bot integration for ask-codex MQTT commands and in-chat mention replies; requires a separate local Codex backend service listening on codex.endpoint",
         type: "object",
       },
       auth: {

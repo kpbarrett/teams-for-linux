@@ -89,7 +89,13 @@ const allowedChannels = new Set([
 
   // Quick Chat modal
   'quick-chat:show',
-  'quick-chat:hide'
+  'quick-chat:hide',
+
+  // Renderer debug logging
+  'codex-chat-debug-log',
+
+  // Codex assistant requests
+  'codex-ask'
 ]);
 
 const DANGEROUS_PROPS = new Set(['__proto__', 'constructor', 'prototype']);

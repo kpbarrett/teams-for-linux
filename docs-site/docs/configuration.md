@@ -26,6 +26,8 @@ This document details all available configuration options for the Teams for Linu
   - [MQTT Integration](#mqtt-integration)
   - [Microsoft Graph API](#microsoft-graph-api)
   - [Quick Chat](#quick-chat)
+  - [Codex Integration](#codex-integration)
+  - [Chat Transcript Capture](#chat-transcript-capture)
   - [Performance & Hardware](#performance--hardware)
   - [Wayland](#wayland)
   - [Cache & Storage](#cache--storage)
@@ -464,6 +466,55 @@ All topics use retained messages by default, ensuring subscribers receive the la
 
 > [!NOTE]
 > Direct in-chat replies are only triggered by explicit mentions of the configured bot name or aliases. The message is forwarded to the local Codex backend and the reply is posted back into the active Teams chat as the signed-in user. Start the separate Codex backend service before enabling this feature.
+
+### Chat Transcript Capture
+
+Chat transcript capture writes a local append-only JSONL feed for companion tools such as Megathread Tamer. It is disabled by default and does not use Microsoft Graph.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `chatTranscript.enabled` | `boolean` | `false` | Enable local chat transcript capture from the Teams web UI |
+| `chatTranscript.outputPath` | `string` | `""` | Output JSONL path. Empty writes to `chat-transcripts/teams.jsonl` under the Teams for Linux user data directory |
+| `chatTranscript.pollIntervalMs` | `number` | `2000` | Fallback DOM scan interval in milliseconds |
+| `chatTranscript.maxMessagesPerScan` | `number` | `80` | Maximum new messages to append per scan |
+
+```json title="Example Configuration"
+{
+  "chatTranscript": {
+    "enabled": true
+  }
+}
+```
+
+Default output path for a standard install:
+
+```text
+~/.config/teams-for-linux/chat-transcripts/teams.jsonl
+```
+
+Each line is a JSON record:
+
+```json
+{
+  "type": "chat-message",
+  "source": "teams",
+  "conversation": {
+    "key": "https://teams.cloud.microsoft/l/chat/...",
+    "title": "Project Chat",
+    "url": "https://teams.cloud.microsoft/l/chat/..."
+  },
+  "message": {
+    "id": "stable-local-id",
+    "author": "Alice",
+    "text": "Message body",
+    "timestamp": "2026-06-04T08:00:00Z",
+    "is_self": false
+  },
+  "captured_at": "2026-06-04T08:00:01Z"
+}
+```
+
+The extractor is best-effort because Teams' DOM can change. Consumers should tolerate duplicate or missing records and use `message.id` plus `conversation.key` for deduplication.
 
 ### Performance & Hardware
 

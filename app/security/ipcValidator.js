@@ -95,7 +95,10 @@ const allowedChannels = new Set([
   'codex-chat-debug-log',
 
   // Codex assistant requests
-  'codex-ask'
+  'codex-ask',
+
+  // Local chat transcript capture
+  'chat-transcript:append'
 ]);
 
 const DANGEROUS_PROPS = new Set(['__proto__', 'constructor', 'prototype']);

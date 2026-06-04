@@ -23,6 +23,7 @@ const PartitionsManager = require("./partitions/manager");
 const IdleMonitor = require("./idle/monitor");
 const AutoUpdater = require("./autoUpdater");
 const LocalCodexClient = require("./codex/localCodexClient");
+const { ChatTranscriptWriter, resolveTranscriptPath } = require("./chatTranscript/writer");
 const os = require("node:os");
 const isMac = os.platform() === "darwin";
 
@@ -91,6 +92,7 @@ let mqttMediaStatusService = null;
 let graphApiClient = null;
 let quickChatManager = null;
 let localCodexClient = null;
+let chatTranscriptWriter = null;
 
 const { createPlayer } = require("./audio/player");
 const player = createPlayer();
@@ -459,6 +461,25 @@ function initializeCodexClient() {
   console.info('[CODEX] Local Codex client initialized; start a local Codex backend service listening at', config.codex.endpoint);
 }
 
+function initializeChatTranscriptWriter() {
+  if (!config.chatTranscript?.enabled) {
+    return;
+  }
+
+  const outputPath = resolveTranscriptPath(app.getPath("userData"), config.chatTranscript.outputPath);
+  chatTranscriptWriter = new ChatTranscriptWriter({ outputPath });
+  console.info('[CHAT_TRANSCRIPT] Local transcript capture enabled:', { outputPath });
+}
+
+function registerChatTranscriptHandlers() {
+  ipcMain.handle('chat-transcript:append', async (_event, records) => {
+    if (!chatTranscriptWriter) {
+      return { written: 0, disabled: true };
+    }
+    return chatTranscriptWriter.append(records);
+  });
+}
+
 function registerCodexIpcHandlers() {
   ipcMain.handle('codex-ask', async (_event, payload) => {
     const question = typeof payload?.question === 'string' ? payload.question : '';
@@ -595,6 +616,7 @@ async function handleAppReady() {
 
     initializeCacheManagement();
     initializeCodexClient();
+    initializeChatTranscriptWriter();
 
     if (config.mqtt?.enabled) {
       initializeMqtt();
@@ -609,6 +631,7 @@ async function handleAppReady() {
     initializeGraphApiClient();
     registerGraphApiHandlers(ipcMain, graphApiClient);
     registerCodexIpcHandlers();
+    registerChatTranscriptHandlers();
     initializeQuickChat();
     registerGlobalShortcuts(config, mainAppWindow, app);
     initializeAutoUpdater();

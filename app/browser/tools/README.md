@@ -164,6 +164,12 @@ Detects explicit `@botName` mentions in the Teams composer, forwards the message
 
 **Configuration**: `codex.enabled: true`
 
+#### [chatTranscript.js](chatTranscript.js)
+Extracts visible Teams chat messages from the web UI and sends sanitized records to the main process for local JSONL append. This provides a local feed for companion tools such as Megathread Tamer without using Microsoft Graph.
+
+**Configuration**: `chatTranscript.enabled: true`
+**Requires**: `ipcRenderer` passed during initialization
+
 **Configuration**: Requires `mqtt.enabled: true` in config
 **Requires**: `ipcRenderer` passed during initialization
 

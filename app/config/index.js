@@ -564,6 +564,16 @@ function extractYargConfig(configObject, appVersion) {
         describe: "Local Codex bot integration for ask-codex MQTT commands and in-chat mention replies; requires a separate local Codex backend service listening on codex.endpoint",
         type: "object",
       },
+      chatTranscript: {
+        default: {
+          enabled: false,
+          outputPath: "",
+          pollIntervalMs: 2000,
+          maxMessagesPerScan: 80,
+        },
+        describe: "Local chat transcript JSONL capture for companion tools such as Megathread Tamer. Disabled by default.",
+        type: "object",
+      },
       auth: {
         default: {
           intune: {

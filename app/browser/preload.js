@@ -358,11 +358,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       { name: "cameraResolution", path: "./tools/cameraResolution" },
       { name: "cameraAspectRatio", path: "./tools/cameraAspectRatio" },
       { name: "navigationButtons", path: "./tools/navigationButtons" },
+      { name: "chatTranscript", path: "./tools/chatTranscript" },
       { name: "framelessTweaks", path: "./tools/frameless" }
     ];
 
     // CRITICAL: These modules need ipcRenderer for IPC communication (see CLAUDE.md)
-    const modulesRequiringIpc = new Set(["settings", "theme", "trayIconRenderer", "mqttStatusMonitor"]);
+    const modulesRequiringIpc = new Set(["settings", "theme", "trayIconRenderer", "mqttStatusMonitor", "chatTranscript"]);
 
     let successCount = 0;
     for (const module of modules) {
